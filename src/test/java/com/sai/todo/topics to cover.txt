@@ -1,0 +1,6 @@
+unique constraints
+schema changes
+migrations
+duplicate usernamae
+
+CSRF
