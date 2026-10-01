@@ -14,11 +14,11 @@ import com.sai.todo.mapper.TodoMapper;
 import com.sai.todo.service.TodoService;
 import java.util.List;
 
-//import org.springframework.web.bind.annotation.PathVariable;
+
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
-//import org.springframework.web.bind.annotation.DeleteMapping;
+
 import org.springframework.web.bind.annotation.PutMapping;
 import jakarta.validation.Valid;
 
@@ -43,6 +43,10 @@ public TodoController(TodoService todoService,TodoMapper todoMapper) {
         @RequestParam(defaultValue="0") int page,
         @RequestParam(defaultValue = "5") int size,
         Authentication authentication){
+
+            if(page<0 || size<=0){
+                throw new IllegalArgumentException("Page must be>=0 and size must be > 0");
+            }
         PageRequest pageable=PageRequest.of(page,size,Sort.by("priority").and(Sort.by("id").descending()));
         return todoService.getTodos(pageable,authentication.getName());
 

@@ -2,6 +2,8 @@ package com.sai.todo.entity;
 import com.sai.todo.enums.Priority;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -19,18 +21,22 @@ public class Todo {
      @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
+    @Column(nullable = false)
     private String title;
+    
     private String description;
     private boolean completed;
 
     @Enumerated(EnumType.STRING)
     private Priority priority;
     private LocalDate dueDate;
+    @Column(nullable = false)
     private LocalDateTime createdAt;
+    @Column(nullable = false)
     private LocalDateTime updatedAt;
 
     @ManyToOne
-@JoinColumn(name = "user_id")
+@JoinColumn(name = "user_id",nullable = false)
 
     private User user;
     

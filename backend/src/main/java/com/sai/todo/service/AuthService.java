@@ -1,13 +1,14 @@
 package com.sai.todo.service;
 
 import java.time.LocalDateTime;
-import java.util.Random;
+import java.security.SecureRandom;
 
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import java.util.Optional;
 
 import com.sai.todo.dto.ForgotPasswordRequest;
 import com.sai.todo.dto.LoginRequest;
@@ -17,6 +18,7 @@ import com.sai.todo.dto.ResetPasswordRequest;
 import com.sai.todo.dto.VerifyOtpRequest;
 import com.sai.todo.entity.PasswordResetOtp;
 import com.sai.todo.entity.User;
+import com.sai.todo.exception.BadRequestException;
 import com.sai.todo.exception.UserNotFoundException;
 import com.sai.todo.repository.PasswordResetOtpRepository;
 import com.sai.todo.repository.UserRepository;
@@ -31,6 +33,13 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
     private final PasswordResetOtpRepository passwordResetOtpRepository;
+
+    private static final int OTP_COOLDOWN_SECONDS=120;
+    private static final int OTP_EXPIRATION_MINUTES=5;
+    private static final int Max_OTP_ATTEMPTS=5;
+
+    private static final int OTP_MIN=100000;
+    private static final int OTP_RANGE=900000;
 
 
     public AuthService(AuthenticationManager authenticationManager,JwtService jwtService,UserRepository userRepository,PasswordEncoder passwordEncoder,MailService mailService,PasswordResetOtpRepository passwordResetOtpRepository){
@@ -53,7 +62,7 @@ public class AuthService {
         User user=(User) authentication.getPrincipal();
         String role=user.getRole();
 
-        return jwtService.generateToken(authentication.getName(),role);
+        return jwtService.generateToken(authentication.getName(),role,user.getTokenVersion());
     }
 
 
@@ -68,28 +77,47 @@ public class AuthService {
         return new RegisterResponse(savedUser.getId(),savedUser.getUsername(),savedUser.getRole());
     }
 
-    public void  forgotPassword(ForgotPasswordRequest request){
-        User user=userRepository.findByUsername(request.getUsername()).orElseThrow(()->new UserNotFoundException("User not found"));
-        int otp=100000+new Random().nextInt(900000);
+    public String  forgotPassword(ForgotPasswordRequest request){
+        Optional<User> userOptional=userRepository.findByUsername(request.getUsername());
+        if(userOptional.isEmpty()){
+            return "If the account exists ,a password reset OTP has been sent.";
+        }
+        
+        User user=userOptional.get();
+        int otp=OTP_MIN+new SecureRandom().nextInt(OTP_RANGE);
         PasswordResetOtp resetOtp=passwordResetOtpRepository.findByUser(user).orElse(new PasswordResetOtp());
-        resetOtp.setOtp(otp);
-        resetOtp.setExpiresAt(LocalDateTime.now().plusMinutes(5));
+        if(resetOtp.getLastSentAt()!=null && resetOtp.getLastSentAt().plusSeconds(OTP_COOLDOWN_SECONDS).isAfter(LocalDateTime.now())){
+
+            throw new BadRequestException("Please wait before requesting another OTP");
+
+        }
+         resetOtp.setLastSentAt(LocalDateTime.now());
+        resetOtp.setOtpHash(passwordEncoder.encode(String.valueOf(otp)));
+        resetOtp.setExpiresAt(LocalDateTime.now().plusMinutes(OTP_EXPIRATION_MINUTES));
         resetOtp.setVerified(false);
         resetOtp.setUser(user);
+        resetOtp.setAttempts(0);
         passwordResetOtpRepository.save(resetOtp);
         mailService.sendEmail(user.getEmail(), "Password reset OTP","Your OTP is:"+otp);
+        return "If the account exists ,a password reset OTP has been sent.";
     }
 
         public void verifyOtp(VerifyOtpRequest request){
            User user=userRepository.findByUsername(request.getUsername()).orElseThrow(()->new UserNotFoundException("User not found"));
-            PasswordResetOtp resetOtp=passwordResetOtpRepository.findByUser(user).orElseThrow(()->new RuntimeException("OTP not found"));
+            PasswordResetOtp resetOtp=passwordResetOtpRepository.findByUser(user).orElseThrow(()->new BadRequestException("OTP not found"));
 
-            if(resetOtp.getExpiresAt().isBefore(LocalDateTime.now())){
-                throw new RuntimeException("OTP EXPIRED");
+            if(resetOtp.getAttempts()>=Max_OTP_ATTEMPTS){
+                throw new BadRequestException("Too many invalid OTP attempts");
             }
 
-           if(!resetOtp.getOtp().toString().equals(request.getOtp())){
-            throw new RuntimeException("Invalid OTP");
+            if(resetOtp.getExpiresAt().isBefore(LocalDateTime.now())){
+                throw new BadRequestException("OTP EXPIRED");
+            }
+
+           if(!passwordEncoder.matches(request.getOtp(),resetOtp.getOtpHash())){
+             resetOtp.setAttempts(resetOtp.getAttempts()+1);
+             passwordResetOtpRepository.save(resetOtp);
+            throw new BadRequestException("Invalid OTP");
            }
            resetOtp.setVerified(true);
 
@@ -101,20 +129,23 @@ public class AuthService {
 
             User user=userRepository.findByUsername(request.getUsername()).orElseThrow(()->new UserNotFoundException("user not found"));
 
-            PasswordResetOtp resetOtp=passwordResetOtpRepository.findByUser(user).orElseThrow(()-> new RuntimeException("OTP not found"));
+            PasswordResetOtp resetOtp=passwordResetOtpRepository.findByUser(user).orElseThrow(()-> new BadRequestException("OTP not found"));
+
+            if(resetOtp.getExpiresAt()==null || resetOtp.getExpiresAt().isBefore(LocalDateTime.now())){
+                throw new BadRequestException("OTP has expired");
+            }
 
             if(!resetOtp.isVerified()){
-                throw new RuntimeException("OTP not verified");
+                throw new BadRequestException("OTP not verified");
 
             }
             user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+            user.setTokenVersion(user.getTokenVersion()+1);
             userRepository.save(user);
 
-            resetOtp.setOtp(null);
-            resetOtp.setExpiresAt(null);
-            resetOtp.setVerified(false);
+              passwordResetOtpRepository.delete(resetOtp);
 
-            passwordResetOtpRepository.save(resetOtp);
+           
             
         }
 

@@ -6,7 +6,7 @@ import java.util.List;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import com.fasterxml.jackson.annotation.JsonManagedReference;
+
 
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
@@ -28,9 +28,11 @@ public class User  implements UserDetails{
 
   @Column(unique = true,nullable = false)
     private String username;
-
+@Column(nullable = false)
     private String password;
+    @Column(nullable = false)
     private String role;
+    private int tokenVersion=0;
 
     @OneToMany(
         mappedBy="user",
@@ -86,6 +88,12 @@ public class User  implements UserDetails{
     }
     public void setEmail(String email){
         this.email=email;
+    }
+    public int getTokenVersion(){
+        return tokenVersion;
+    }
+    public void setTokenVersion(int tokenVersion){
+        this.tokenVersion=tokenVersion;
     }
      
 

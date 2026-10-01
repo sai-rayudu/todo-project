@@ -2,6 +2,7 @@ package com.sai.todo.entity;
 
 import java.time.LocalDateTime;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -16,12 +17,19 @@ public class PasswordResetOtp {
     @Id
     @GeneratedValue(strategy=GenerationType.IDENTITY)
     private int id;
-    private Integer otp;
+    @Column(nullable = false)
+    private String otpHash;
+    @Column(nullable = false)
     private LocalDateTime expiresAt;
+    @Column(nullable = false)
     private boolean verified;
+    @Column(nullable = false)
+    private int attempts;
+    @Column(nullable = false)
+    private LocalDateTime lastSentAt;
 
     @OneToOne
-    @JoinColumn(name="user_id",unique=true)
+    @JoinColumn(name="user_id",unique=true, nullable = false)
     private User user;
 
 
@@ -33,11 +41,11 @@ public class PasswordResetOtp {
         this.id=id;
      }
 
-     public Integer getOtp(){
-        return otp;
+     public String getOtpHash(){
+        return otpHash;
      }
-     public void setOtp(Integer otp){
-        this.otp=otp;
+     public void setOtpHash(String otpHash){
+        this.otpHash=otpHash;
      }
      public LocalDateTime getExpiresAt(){
         return expiresAt;
@@ -56,6 +64,19 @@ public class PasswordResetOtp {
      }
      public void setUser(User user){
         this.user=user;
+     }
+     public int getAttempts(){
+      return attempts;
+     }
+     public void setAttempts(int attempts){
+      this.attempts=attempts;
+     }
+
+     public LocalDateTime getLastSentAt(){
+      return lastSentAt;
+     }
+     public void setLastSentAt(LocalDateTime lastSentAt){
+      this.lastSentAt=lastSentAt;
      }
     
 }

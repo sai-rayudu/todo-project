@@ -11,19 +11,25 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.sai.todo.entity.User;
+import com.sai.todo.repository.UserRepository;
+
 import io.jsonwebtoken.Claims;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import java.util.List;
+import java.util.Optional;
 
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final UserRepository userRepository;
 
 
-    public JwtAuthenticationFilter(JwtService jwtService){
+    public JwtAuthenticationFilter(JwtService jwtService,UserRepository userRepository){
         this.jwtService=jwtService;
+        this.userRepository=userRepository;
 
     }
 
@@ -34,22 +40,33 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         FilterChain filterChain) throws ServletException,IOException{
 
             String authHeader = request.getHeader("Authorization");
-if (authHeader == null) {
+if (authHeader == null || !authHeader.startsWith("Bearer ")) {
     filterChain.doFilter(request, response);
     return;
 }
 
-if (!authHeader.startsWith("Bearer ")) {
-    filterChain.doFilter(request, response);
-    return;
-}
+
 
 
 String jwt = authHeader.substring(7);
 try{
  Claims claims=jwtService.extractAllClaims(jwt);
  String username=claims.getSubject();
-  String role=claims.get("role",String.class);
+
+ Optional<User> userOptional=userRepository.findByUsername(username);
+ if(userOptional.isEmpty()){
+    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    return;
+ }
+ User user=userOptional.get();
+
+ int tokenVersion=claims.get("tokenVersion",Integer.class);
+ if(tokenVersion!=user.getTokenVersion()){
+     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+     return;
+ }
+
+  String role=user.getRole();
   SimpleGrantedAuthority authority=new SimpleGrantedAuthority("ROLE_"+role);
    UsernamePasswordAuthenticationToken authentication=new UsernamePasswordAuthenticationToken(username,null,List.of(authority));
      SecurityContextHolder.getContext().setAuthentication(authentication);

@@ -18,7 +18,7 @@ import com.sai.todo.repository.UserRepository;
 import com.sai.todo.specification.TodoSpecification;
 import com.sai.todo.exception.UserNotFoundException;
 
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class TodoService {
@@ -36,7 +36,7 @@ public class TodoService {
  
 
      public TodoPageResponse getTodos(Pageable pageable,String username){
-      User user=userRepository.findByUsername(username).orElseThrow(()->new UserNotFoundException("User not found"));
+      User user=findUserByUsername(username);
       Page<Todo> page= todoRepository.findByUser(user,pageable);
       List<TodoDto> todoDtos=todoMapper.toDtoList(page.getContent());
 
@@ -48,15 +48,13 @@ public class TodoService {
      }
 
      public Todo createTodo(Todo todo,String username) {
-      User user=userRepository.findByUsername(username).orElseThrow(()->new UserNotFoundException("User not found"));
-        todo.setCreatedAt(LocalDateTime.now());
-        todo.setUpdatedAt(LocalDateTime.now());
-        todo.setUser(user);
+      User user=findUserByUsername(username);
+       prepareTodo(todo, user);
         return todoRepository.save(todo);
      }
     
      public Todo getTodoById(int id,String username) {
-      User user=userRepository.findByUsername(username).orElseThrow(()-> new UserNotFoundException("user not found"));
+      User user=findUserByUsername(username);
   
      return todoRepository.findByIdAndUser(id,user).orElseThrow(()-> new TodoNotFoundException("Todo not found"));
 
@@ -83,7 +81,7 @@ public void deleteTodo(int id,String username) {
 
 
 public List<TodoDto>  getTodos(String title,Priority priority,String username){
-  User user=userRepository.findByUsername(username).orElseThrow(()->new RuntimeException("User not found"));
+  User user=findUserByUsername(username);
 
         Specification<Todo> specification=Specification.allOf();
         specification=specification.and(TodoSpecification.belongsTo(user));
@@ -101,7 +99,7 @@ public List<TodoDto>  getTodos(String title,Priority priority,String username){
 @Transactional
 public void completeAllTodos(String username){
 
-  User user=userRepository.findByUsername(username).orElseThrow(()->new UserNotFoundException("User not found"));
+  User user=findUserByUsername(username);
   List<Todo> todos=todoRepository.findByUser(user);
    
 
@@ -114,18 +112,16 @@ public void completeAllTodos(String username){
 
 
 
-
+@Transactional(readOnly = true)
   public List<TodoDto> getUserTodos(String username){
-    User user=userRepository.findByUsername(username).orElseThrow(()-> new UserNotFoundException("User not found"));
+    User user=findUserByUsername(username);
 
     return todoMapper.toDtoList(user.getTodos());
   }
 
   public Todo createTodoForUser(Todo todo,int userId){
     User user=userRepository.findById(userId).orElseThrow(()->new UserNotFoundException("User not found"));
-    todo.setUser(user);
-    todo.setCreatedAt(LocalDateTime.now());
-    todo.setUpdatedAt(LocalDateTime.now());
+   prepareTodo(todo, user);
     return todoRepository.save(todo);
   }
 
@@ -139,6 +135,20 @@ public void completeAllTodos(String username){
   public void deleteTodoForAdmin(int todoId){
     Todo todo=todoRepository.findById(todoId).orElseThrow(()->new TodoNotFoundException("Todo not found"));
     todoRepository.delete(todo);
+  }
+
+
+  private User findUserByUsername(String username){
+
+    return userRepository.findByUsername(username).orElseThrow(()->new UserNotFoundException("User not found"));
+
+  }
+
+  private void prepareTodo(Todo todo,User user){
+    LocalDateTime now=LocalDateTime.now();
+    todo.setUser(user);
+    todo.setCreatedAt(now);
+    todo.setUpdatedAt(now);
   }
 
 

@@ -9,18 +9,17 @@ import jakarta.validation.Valid;
 import com.sai.todo.dto.ForgotPasswordRequest;
 import com.sai.todo.dto.LoginRequest;
 import com.sai.todo.dto.RegisterRequest;
-import com.sai.todo.dto.TodoDto;
+
 import com.sai.todo.dto.VerifyOtpRequest;
-import com.sai.todo.entity.User;
+
 
 
 import com.sai.todo.service.AuthService;
-import com.sai.todo.service.TodoService;
-import com.sai.todo.service.MailService;
+
 import com.sai.todo.dto.RegisterResponse;
 import com.sai.todo.dto.ResetPasswordRequest;
 
-import java.util.List;
+
 
 
 
@@ -29,16 +28,15 @@ public class AuthController {
   
    
      
-      private final TodoService todoService;
-      private final MailService mailService;
+   
       private final AuthService authService;
-    public AuthController(TodoService todoService,AuthService authService,MailService mailService){
+    public AuthController(AuthService authService){
         
       
    
-        this.todoService=todoService;
+       
         this.authService=authService;
-        this.mailService=mailService;
+       
 
     }
 
@@ -70,9 +68,8 @@ public class AuthController {
 
     @PostMapping("/forgot-password")
     public String forgotPassword(@Valid @RequestBody ForgotPasswordRequest request){
-        authService.forgotPassword(request);
-
-        return "OTP sent to your email";
+         return authService.forgotPassword(request);
+        
     }
 
     @PostMapping("/verify-otp")

@@ -25,10 +25,11 @@ public class JwtService {
     return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
 }
 
-public String generateToken(String username,String role) {
+public String generateToken(String username,String role,int tokenVersion) {
     return Jwts.builder()
             .subject(username)
             .claim("role",role)
+            .claim("tokenVersion",tokenVersion)
                   .issuedAt(new Date())
                        .expiration(new Date(System.currentTimeMillis() + expiration))
             .signWith(getSigningKey())
