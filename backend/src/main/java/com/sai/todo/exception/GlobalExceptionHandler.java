@@ -64,6 +64,8 @@ public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNot
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpectedException(Exception ex){
+        System.out.println("Unexpected error: " + ex.getMessage());
+ex.printStackTrace();
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ErrorResponse("An unexpected error occured"));
     }
