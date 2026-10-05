@@ -35,3 +35,5 @@ build/
 
 /src/test/java/com/sai/todo/notes.txt
 .env
+src/main/resources/credentials.json
+tokens/

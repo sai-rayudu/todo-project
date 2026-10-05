@@ -18,6 +18,7 @@ import com.sai.todo.service.AuthService;
 
 import com.sai.todo.dto.RegisterResponse;
 import com.sai.todo.dto.ResetPasswordRequest;
+import com.sai.todo.dto.VerifyRegistrationRequest;
 
 
 
@@ -83,6 +84,12 @@ public class AuthController {
         authService.resetPassword(request);
 
         return "Password reset successfully";
+    }
+
+    @PostMapping("/verify-registration")
+    public String verifyRegistration(@Valid @RequestBody VerifyRegistrationRequest request){
+        authService.verifyRegistration(request);
+        return "Email verified successfully. Registration completed";
     }
 
 

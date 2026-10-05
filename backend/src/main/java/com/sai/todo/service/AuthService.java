@@ -24,6 +24,9 @@ import com.sai.todo.repository.PasswordResetOtpRepository;
 import com.sai.todo.repository.UserRepository;
 import com.sai.todo.security.JwtService;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import com.sai.todo.entity.UserRegistration;
+import com.sai.todo.repository.UserRegistrationRepository;
+import com.sai.todo.dto.VerifyRegistrationRequest;
 
 @Service 
 public class AuthService {
@@ -33,6 +36,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
     private final PasswordResetOtpRepository passwordResetOtpRepository;
+    private final UserRegistrationRepository userRegistrationRepository;
 
     private static final int OTP_COOLDOWN_SECONDS=120;
     private static final int OTP_EXPIRATION_MINUTES=5;
@@ -42,7 +46,10 @@ public class AuthService {
     private static final int OTP_RANGE=900000;
 
 
-    public AuthService(AuthenticationManager authenticationManager,JwtService jwtService,UserRepository userRepository,PasswordEncoder passwordEncoder,MailService mailService,PasswordResetOtpRepository passwordResetOtpRepository){
+    public AuthService(AuthenticationManager authenticationManager,JwtService jwtService,
+        UserRepository userRepository,PasswordEncoder passwordEncoder,MailService mailService,
+        PasswordResetOtpRepository passwordResetOtpRepository,
+    UserRegistrationRepository userRegistrationRepository){
 
         this.authenticationManager=authenticationManager;
         this.jwtService=jwtService;
@@ -50,6 +57,7 @@ public class AuthService {
         this.passwordEncoder=passwordEncoder;
         this.mailService=mailService;
         this.passwordResetOtpRepository=passwordResetOtpRepository;
+        this.userRegistrationRepository=userRegistrationRepository;
 
     }
 
@@ -67,14 +75,103 @@ public class AuthService {
 
 
     public RegisterResponse register(RegisterRequest request){
-        User user = new User();
-         user.setUsername(request.getUsername());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setRole("USER");
-        user.setEmail(request.getEmail());
-        User savedUser=userRepository.save(user);
+            if(userRepository.findByUsername(request.getUsername()).isPresent()){
+                throw new BadRequestException("Username already exists");
+            }
+            if(userRepository.findByEmail(request.getEmail()).isPresent()){
+                throw new BadRequestException("Email already exists");
+            }
 
-        return new RegisterResponse(savedUser.getId(),savedUser.getUsername(),savedUser.getRole());
+            Optional<UserRegistration> existingRegistration=userRegistrationRepository.findByEmail(request.getEmail());
+
+            LocalDateTime now = LocalDateTime.now();
+
+            if(existingRegistration.isPresent()){
+                UserRegistration registration=existingRegistration.get();
+
+                if(registration.getOtpExpiresAt().isAfter(now)){
+                    throw new BadRequestException("Email verification is already pending");
+                }
+                registration.setUsername(request.getUsername());
+                registration.setEmail(request.getEmail());
+                registration.setPassword(passwordEncoder.encode(request.getPassword()));
+                int otp=OTP_MIN+ new SecureRandom().nextInt(OTP_RANGE);
+
+                registration.setOtpHash(passwordEncoder.encode(String.valueOf(otp)));
+
+                registration.setOtpExpiresAt(now.plusMinutes(OTP_EXPIRATION_MINUTES));
+
+                registration.setOtpAttempts(0);
+                //registration.setCreatedAt(now);
+                registration.setUpdatedAt(now);
+
+                userRegistrationRepository.save(registration);
+
+                mailService.sendEmail(
+                    registration.getEmail(),
+                    "Email Verification OTP",
+                    "Your OTP is:"+otp
+                );
+                return new RegisterResponse(
+                    "Registration OTP sent. Please verify your email."
+                );
+            }
+            if(userRegistrationRepository.findByUsername(request.getUsername()).isPresent()){
+                throw new BadRequestException("Username already exists");
+            }
+
+            UserRegistration registration=new UserRegistration();
+            registration.setUsername(request.getUsername());
+            registration.setEmail(request.getEmail());
+            registration.setPassword(passwordEncoder.encode(request.getPassword()));
+            int otp=OTP_MIN + new SecureRandom().nextInt(OTP_RANGE);
+
+            registration.setOtpHash(passwordEncoder.encode(String.valueOf(otp)));
+            registration.setOtpExpiresAt(now.plusMinutes(OTP_EXPIRATION_MINUTES));
+            registration.setOtpAttempts(0);
+            registration.setCreatedAt(now);
+            registration.setUpdatedAt(now);
+
+            userRegistrationRepository.save(registration);
+
+            mailService.sendEmail(registration.getEmail(),"Email verification OTP","Your OTP is :"+otp);
+
+
+
+        return new RegisterResponse("Registration OTP sent. Please verify your email.");
+    }
+
+
+
+    public void verifyRegistration(VerifyRegistrationRequest request){
+        UserRegistration registration=userRegistrationRepository.findByEmail(request.getEmail()).orElseThrow(()->new BadRequestException("Registration not found"));
+        LocalDateTime now=LocalDateTime.now();
+
+        if(registration.getOtpAttempts()>=Max_OTP_ATTEMPTS){
+            throw new BadRequestException("Too many invalid OTP attempts");
+            
+        }
+
+        if(registration.getOtpExpiresAt().isBefore(now)){
+            throw new BadRequestException("OTP has expired");
+        }
+
+        if(!passwordEncoder.matches(request.getOtp(),registration.getOtpHash())){
+            registration.setOtpAttempts(registration.getOtpAttempts()+1);
+            userRegistrationRepository.save(registration);
+            throw new BadRequestException("Invalid OTP");
+        }
+
+        User user =new User();
+        user.setUsername(registration.getUsername());
+        user.setEmail(registration.getEmail());
+        user.setPassword(registration.getPassword());
+        user.setRole("USER");
+        userRepository.save(user);
+
+        userRegistrationRepository.delete(registration);
+
+
     }
 
     public String  forgotPassword(ForgotPasswordRequest request){
