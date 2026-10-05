@@ -4,11 +4,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.sai.todo.entity.PasswordResetOtp;
 import com.sai.todo.entity.User;
 import com.sai.todo.exception.BadRequestException;
 import com.sai.todo.exception.UserNotFoundException;
-import com.sai.todo.repository.PasswordResetOtpRepository;
 import com.sai.todo.repository.TodoRepository;
 import com.sai.todo.repository.UserRepository;
 
@@ -18,18 +16,17 @@ public class UserService {
 private final UserRepository userRepository;
 private final TodoRepository todoRepository;
 private final PasswordEncoder passwordEncoder;
-private final PasswordResetOtpRepository passwordResetOtpRepository;
+
 
 public UserService(
     UserRepository userRepository,
     TodoRepository todoRepository,
-    PasswordEncoder passwordEncoder,
-    PasswordResetOtpRepository passwordResetOtpRepository
+    PasswordEncoder passwordEncoder
 ){
     this.userRepository=userRepository;
     this.todoRepository=todoRepository;
     this.passwordEncoder=passwordEncoder;
-    this.passwordResetOtpRepository=passwordResetOtpRepository;
+
 }
 
 @Transactional
@@ -41,10 +38,7 @@ public void deleteMyAccount(String username,String currentPassword){
         throw new BadRequestException("Current password is incorrect");
     }
 
-    PasswordResetOtp resetOtp=passwordResetOtpRepository.findByUser(user).orElse(null);
-    if(resetOtp!=null){
-        passwordResetOtpRepository.delete(resetOtp);
-    }
+   
 
     todoRepository.deleteAll(user.getTodos());
 
@@ -56,7 +50,7 @@ public void deleteMyAccount(String username,String currentPassword){
     @Transactional
     public void deleteUserById(int userId){
         User user=userRepository.findById(userId).orElseThrow(()->new UserNotFoundException("User not found"));
-    passwordResetOtpRepository.findByUser(user).ifPresent(passwordResetOtpRepository::delete);
+  
 
        todoRepository.deleteAll(user.getTodos());
 
