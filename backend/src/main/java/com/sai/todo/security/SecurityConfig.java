@@ -57,7 +57,7 @@ public class SecurityConfig {
 
    @Bean
    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception{
-    http.csrf(csrf -> csrf.disable()).authorizeHttpRequests(auth->auth
+    http.cors(cors -> {}).csrf(csrf -> csrf.disable()).authorizeHttpRequests(auth->auth
         .requestMatchers("/register","/login","/", "/privacy-policy").permitAll().requestMatchers("/admin/**")
         .hasRole("ADMIN").anyRequest().authenticated()).exceptionHandling(exception -> exception
         .accessDeniedHandler((request,response,accessDeniedException)->response.setStatus(HttpServletResponse.SC_FORBIDDEN)).authenticationEntryPoint(
