@@ -18,19 +18,17 @@ public class UserController {
 
     private final UserService userService;
 
-    public UserController(UserService userService){
-        this.userService=userService;
+    public UserController(UserService userService) {
+        this.userService = userService;
     }
-    
 
     @DeleteMapping("/me")
     public ResponseEntity<Void> deleteMyAccount(
-        @Valid @RequestBody DeleteAccountRequest request,Authentication authentication){
+            @Valid @RequestBody DeleteAccountRequest request, Authentication authentication) {
 
-            userService.deleteMyAccount(authentication.getName(),request.getCurrentPassword());
+        userService.deleteMyAccount(authentication.getName(), request.getCurrentPassword());
 
-            return ResponseEntity.noContent().build();
+        return ResponseEntity.noContent().build();
 
-        }
-    
+    }
 }

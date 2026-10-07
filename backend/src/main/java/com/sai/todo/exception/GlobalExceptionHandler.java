@@ -6,6 +6,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.http.ResponseEntity;
 import java.sql.SQLIntegrityConstraintViolationException;
+import org.springframework.security.authentication.BadCredentialsException;
 
 
 @RestControllerAdvice
@@ -61,6 +62,11 @@ public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNot
     public ResponseEntity<ErrorResponse> handleBadRequest(BadRequestException ex){
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(ex.getMessage()));
     }
+
+    @ExceptionHandler(BadCredentialsException.class)
+public ResponseEntity<ErrorResponse> handleBadCredentials(BadCredentialsException ex) {
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+}
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpectedException(Exception ex){

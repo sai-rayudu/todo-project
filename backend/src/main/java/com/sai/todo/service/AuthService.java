@@ -24,7 +24,6 @@ import com.sai.todo.security.JwtService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 
-
 @Service 
 public class AuthService {
     private final AuthenticationManager authenticationManager;
